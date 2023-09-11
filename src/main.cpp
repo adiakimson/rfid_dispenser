@@ -7,7 +7,7 @@
 
 MFRC522 mfrc522(SS_PIN, RST_PIN);
 
-byte authorizedCardUID[] = {0x53, 0x0B, 0xF6, 0x99}; // Authorized card UID in little-endian hexadecimal
+uint32_t authorizedCardUID = 0x530BF699; // Authorized card UID in hexadecimal
 
 void printUID(MFRC522::Uid uid) {
   for (byte i = 0; i < uid.size; i++) {
@@ -17,18 +17,14 @@ void printUID(MFRC522::Uid uid) {
   Serial.println();
 }
 
-bool compareUID(MFRC522::Uid detectedUID, byte storedUID[], byte length) {
-  if (detectedUID.size != length) {
-    return false; // The UID sizes don't match, not the same card.
+bool compareUID(byte detectedUID[], uint32_t storedUID) {
+  uint32_t detectedCardUID = 0;
+
+  for (byte i = 0; i < 4; i++) {
+    detectedCardUID = (detectedCardUID << 8) | detectedUID[i];
   }
 
-  for (byte i = 0; i < detectedUID.size; i++) {
-    if (detectedUID.uidByte[i] != storedUID[i]) {
-      return false; // At least one byte is different, not the same card.
-    }
-  }
-
-  return true; // All bytes match, it's the same card.
+  return detectedCardUID == storedUID;
 }
 
 void setup() {
@@ -40,9 +36,8 @@ void setup() {
 
 void loop() {
   if (mfrc522.PICC_IsNewCardPresent() && mfrc522.PICC_ReadCardSerial()) {
-    if (compareUID(mfrc522.uid, authorizedCardUID, sizeof(authorizedCardUID))) {
+    if (compareUID(mfrc522.uid.uidByte, authorizedCardUID)) {
       Serial.println("Authorized card detected.");
-      printUID(mfrc522.uid);
     } else {
       Serial.println("Unauthorized card detected with UID:");
       printUID(mfrc522.uid);
